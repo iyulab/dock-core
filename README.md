@@ -16,6 +16,18 @@ A docking layout engine that is independent of any host.
 Status: pre-release. The data model, operations, serialization, hit-testing and a minimal store are implemented and tested; the
 web-component renderer is implemented and tested against a conformance checklist in a real browser. See [`docs/CONSTITUTION.md`](docs/CONSTITUTION.md) for scope.
 
+## Install
+
+Not published yet, so it is used from a checkout:
+
+```
+cd dock-core
+npm install
+npm run build        # writes dist/ (JavaScript and declarations); there is nothing to import before this
+```
+
+then, in your app, `npm install ../dock-core`. Two entry points are exported: `@iyulab/dock-core` (model, operations, store) and `@iyulab/dock-core/element` (the renderer). Everything is `0.0.0`, so a package built from an older checkout fails with an unrelated-looking `Cannot find module`; rebuild after every pull.
+
 ```ts
 import { createWorkspace, apply, tryApply } from '@iyulab/dock-core';
 
@@ -78,6 +90,22 @@ drop-zone overlay and tab insertion line, keyboard navigation (roving tabindex),
 Several `<dock-root>` elements in one document can move panels between each other. A host that spans windows listens to
 `dock-drag` (cancelable) and drives the target with `dragOver` / `dragLeave` / `drop`; the element never creates windows.
 Theming is through CSS custom properties (`--dock-accent`, `--dock-bg`, …) and `part`s.
+
+### Panel content, removing and restoring
+
+- **Panel content is yours.** The workspace holds a panel's id, title and `params`, never its content. The element shows, for each tab group, the child whose `slot` is the active panel's id; the other children stay in the DOM, hidden. Give every root that can show a panel a child for it, and create one when a panel appears.
+- **Moving a panel moves data only.** Between roots (windows) the panel's id, title and `params` travel; the node in the old root stays where it is, with whatever was typed or scrolled in it, and the new root shows its own node for that id. State that should follow a panel belongs in your application, keyed by panel id.
+- **The tab's ✕ (and the Delete key on a focused tab) removes the panel from the workspace** with a `remove-panel` operation; it is not "hide". To get a panel back, add it again with `add-panel`.
+- **A root the workspace does not have** (a missing `root` attribute, no workspace attached, an id that is not in it) shows a message that names the cause instead of a blank rectangle, and accepts no drop.
+- **A layout that could not be restored** is shown by setting `error`; the element then offers a "Reset layout" button that raises `dock-reset`:
+
+```ts
+element.error = 'The stored layout was written by a newer version.'; // shows the reason and the button
+element.addEventListener('dock-reset', () => {
+  element.error = null;
+  store.replace(defaultWorkspace); // yours: a workspace that passes validation
+});
+```
 
 A host that shares one workspace between windows puts operations in one global order first and dispatches each
 operation only once its place is fixed; the store is the apply-and-notify step.
