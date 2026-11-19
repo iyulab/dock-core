@@ -160,6 +160,21 @@ test('S1.7: a layout that cannot be restored shows the reason and a working rese
     assert.doesNotMatch(await d.call<string>('text("b")'), /restore/);
   }));
 
+test('S1.11: a root that is not in the workspace says so and names the root', { skip: SKIP }, () =>
+  withPage('noroot', async (d) => {
+    assert.equal(await d.call('rootState("b")'), 'no-root');
+    const text = await d.call<string>('text("b")');
+    assert.match(text, /not in the workspace/);
+    assert.match(text, /“ghost”/, 'the message names the root that was asked for');
+    assert.doesNotMatch(text, /No panels in this window/, 'it is not the empty state: nothing can be dropped here');
+    // a drag over it finds no target (nothing to dock into)
+    const from = pt(await d.tab('a', 'ed2'));
+    const b = await d.call<R>('rect("b",".root")');
+    await d.page.dragTo(from, [{ x: from.x + 10, y: from.y + 10 }, { x: b.cx, y: b.cy }]);
+    assert.deepEqual(await d.call('overlay("b")'), { overlay: null, insert: null });
+    await d.page.up({ x: b.cx, y: b.cy });
+  }));
+
 test('S1.8 + S2.7: 40 tabs scroll horizontally, the active tab is in view, reordering works while scrolled', { skip: SKIP }, () =>
   withPage('many', async (d) => {
     const s0 = await d.call<{ left: number; max: number; width: number }>('barScroll("a","gFiles")');
@@ -232,6 +247,29 @@ test('S2.1: drag starts after 5px, a ghost follows, the source tab dims, Escape 
     assert.deepEqual(end.map((e) => e.cancelled), [true]);
     await d.page.up(t);
     assert.equal(await d.layout('A'), NORMAL, 'releasing after the cancel does nothing');
+  }));
+
+test('S2.9: no text is selected while a tab is dragged across the page, and selecting works again afterwards', { skip: SKIP }, () =>
+  withPage('text', async (d) => {
+    assert.equal(await d.call('canSelect()'), true, 'selection is allowed before a drag');
+    const from = pt(await d.tab('a', 'ed2'));
+    const g = await d.group('a', 'gEd');
+    await d.page.dragTo(from, [{ x: from.x, y: g.y + 120 }, { x: g.x + 40, y: g.y + 160 }, { x: g.x + g.width - 40, y: g.y + 260 }, { x: g.x + g.width - 40, y: g.y + 330 }]);
+    assert.ok(await d.call('ghost("a")'), 'the drag is running');
+    assert.deepEqual(await d.call('selected()'), { page: '', area: 0 }, 'nothing is selected while the drag runs');
+    assert.equal(await d.call('canSelect()'), false, 'the page cancels the start of any selection during the drag');
+    await d.page.up({ x: g.x + g.width - 40, y: g.y + 330 });
+    await d.settle();
+    assert.deepEqual(await d.call('selected()'), { page: '', area: 0 }, 'nor after it');
+    assert.equal(await d.call('canSelect()'), true, 'selection is allowed again once the drag ended');
+
+    // a drag that is cancelled lifts the block too
+    const t2 = pt(await d.tab('a', 'ed2'));
+    await d.page.dragTo(t2, [{ x: t2.x + 12, y: t2.y + 6 }]);
+    assert.equal(await d.call('canSelect()'), false);
+    await d.page.press('Escape');
+    await d.page.up(t2);
+    assert.equal(await d.call('canSelect()'), true);
   }));
 
 test('S2.2 + S2.3: the nearest edge within 26% splits that side; the overlay shows the exact region', { skip: SKIP }, () =>

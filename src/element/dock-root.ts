@@ -53,6 +53,8 @@ interface ActiveDrag {
   readonly onUp: (e: PointerEvent) => void;
   readonly onCancel: () => void;
   readonly onKey: (e: KeyboardEvent) => void;
+  /** Cancels text selection for the whole page while the drag lasts: the pointer crosses content the app owns. */
+  readonly onSelect: (e: Event) => void;
 }
 
 interface DropTarget {
@@ -205,6 +207,7 @@ export class DockRoot extends HTMLElement {
       const record = this.#workspace && Object.hasOwn(this.#workspace.roots, this.#root) ? this.#workspace.roots[this.#root] : undefined;
       if (!record) {
         this.#surface.dataset['state'] = 'no-root';
+        this.#surface.append(this.#noRootState());
       } else if (record.node === null) {
         this.#surface.dataset['state'] = 'empty';
         this.#surface.append(this.#emptyState());
@@ -301,6 +304,21 @@ export class DockRoot extends HTMLElement {
     const hint = document.createElement('div');
     hint.textContent = 'Drag a tab here to dock it.';
     inner.append(title, hint);
+    box.append(inner);
+    return box;
+  }
+
+  /** Developer-facing: a window asked for a root the workspace does not have (no workspace, no `root` attribute, or a stale id). */
+  #noRootState(): HTMLElement {
+    const box = el('div', 'state no-root');
+    const inner = document.createElement('div');
+    const title = el('div', 'title');
+    title.textContent = 'This root is not in the workspace';
+    const why = document.createElement('div');
+    if (this.#workspace === null) why.textContent = 'No workspace is attached to this element.';
+    else if (this.#root === '') why.textContent = 'This element has no root attribute.';
+    else why.textContent = `The workspace has no root “${this.#root}”. Add it with an add-root operation.`;
+    inner.append(title, why);
     box.append(inner);
     return box;
   }
@@ -485,12 +503,14 @@ export class DockRoot extends HTMLElement {
       onKey: (ev) => {
         if (ev.key === 'Escape') this.#finishDrag(this.#drag?.last ?? { x: 0, y: 0 }, true);
       },
+      onSelect: (ev) => ev.preventDefault(),
     };
     this.#drag = drag;
     tab.addEventListener('pointermove', drag.onMove);
     tab.addEventListener('pointerup', drag.onUp);
     tab.addEventListener('pointercancel', drag.onCancel);
     document.addEventListener('keydown', drag.onKey, true);
+    document.addEventListener('selectstart', drag.onSelect, true);
   }
 
   #candidateAt(point: Point): DockRoot | null {
@@ -547,6 +567,7 @@ export class DockRoot extends HTMLElement {
     drag.tab.removeEventListener('pointerup', drag.onUp);
     drag.tab.removeEventListener('pointercancel', drag.onCancel);
     document.removeEventListener('keydown', drag.onKey, true);
+    document.removeEventListener('selectstart', drag.onSelect, true);
     if (drag.tab.hasPointerCapture(drag.pointerId)) drag.tab.releasePointerCapture(drag.pointerId);
     drag.tab.classList.remove('ghosted');
     this.#ghost.style.display = 'none';
