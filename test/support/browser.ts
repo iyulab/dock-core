@@ -31,13 +31,14 @@ export function findBrowser(): string | null {
 
 const MIME: Record<string, string> = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json' };
 
-/** Serves `/dist/*` from a build output directory and `/page/*` from the test pages. */
+/** Serves `/dist/*` from a build output directory, `/page/*` from the test pages and `/docs/*` from the repository's docs (the runnable examples). */
 function serve(distDir: string): Promise<{ server: Server; origin: string }> {
   const pages = join(repo, 'test', 'pages');
+  const docs = join(repo, 'docs');
   const server = createServer((req, res) => {
     const url = new URL(req.url ?? '/', 'http://localhost');
     const [, area, ...rest] = url.pathname.split('/');
-    const base = area === 'dist' ? distDir : area === 'page' ? pages : null;
+    const base = area === 'dist' ? distDir : area === 'page' ? pages : area === 'docs' ? docs : null;
     const file = base ? normalize(join(base, ...rest)) : null;
     if (!base || !file || !file.startsWith(base + sep) || !existsSync(file)) {
       res.writeHead(404).end('not found');
@@ -84,10 +85,11 @@ export class Page {
     return r.result.value as T;
   }
 
-  async goto(url: string): Promise<void> {
+  /** Navigates and waits for the document to load and `ready` (a page expression; the test pages set `window.dockReady`) to hold. */
+  async goto(url: string, ready = 'window.dockReady === true'): Promise<void> {
     await this.send('Page.navigate', { url });
     for (let i = 0; i < 200; i++) {
-      if ((await this.eval<string>('document.readyState').catch(() => '')) === 'complete' && (await this.eval<boolean>('window.dockReady === true').catch(() => false))) return;
+      if ((await this.eval<string>('document.readyState').catch(() => '')) === 'complete' && (await this.eval<boolean>(ready).catch(() => false))) return;
       await sleep(25);
     }
     throw new Error(`page did not become ready: ${url}`);

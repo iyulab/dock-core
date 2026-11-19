@@ -100,6 +100,26 @@ off();
   execFileSync(process.execPath, [tsc, '-p', 'tsconfig.element.json'], { cwd: project, stdio: 'pipe' });
 });
 
+test('the examples in docs/ type-check strictly for a consumer, and the ordered-replicas example runs and prints what HOSTS.md says', () => {
+  const examples = join(repo, 'docs', 'examples');
+  for (const file of ['ordered-replicas.ts', 'drag-relay.ts']) writeFileSync(join(project, file), readFileSync(join(examples, file), 'utf8'));
+  writeFileSync(
+    join(project, 'tsconfig.examples.json'),
+    JSON.stringify({
+      compilerOptions: { module: 'NodeNext', moduleResolution: 'NodeNext', target: 'ES2022', lib: ['ES2022', 'DOM'], strict: true, noUncheckedIndexedAccess: true, skipLibCheck: false, noEmit: true, types: [], allowImportingTsExtensions: false },
+      include: ['ordered-replicas.ts', 'drag-relay.ts'],
+    }),
+  );
+  const tsc = join(repo, 'node_modules', 'typescript', 'bin', 'tsc');
+  execFileSync(process.execPath, [tsc, '-p', 'tsconfig.examples.json'], { cwd: project, stdio: 'pipe' });
+
+  const out = execFileSync(process.execPath, ['ordered-replicas.ts'], { cwd: project, encoding: 'utf8' }).trim();
+  const documented = /It prints `(\{[^`]+\})`/.exec(readFileSync(join(repo, 'docs', 'HOSTS.md'), 'utf8'))?.[1];
+  assert.ok(documented, 'HOSTS.md must state what the example prints');
+  assert.deepEqual(JSON.parse(out), JSON.parse(documented));
+  assert.equal((JSON.parse(out) as { same: boolean }).same, true, 'the copies must end up equal');
+});
+
 test('the declarations never point at .ts files', () => {
   const dist = join(project, 'node_modules', '@iyulab', 'dock-core', 'dist');
   const bad: string[] = [];

@@ -413,3 +413,30 @@ test('a workspace that changes under a drag cancels it', { skip: SKIP }, () =>
     await d.page.up(from);
     assert.equal(await d.layout('A'), NORMAL);
   }));
+
+/* ---------------------------------------------------------------------------------- documented example */
+
+test('the two-roots example of docs/HOSTS.md renders and moves a panel between its roots with real input', { skip: SKIP }, async () => {
+  const page = await browser.newPage();
+  try {
+    // the example page is the documentation's, so it carries no test hook: ready means both roots drew their tabs
+    await page.goto(`${browser.origin}/docs/examples/two-roots.html`, `[...document.querySelectorAll('dock-root')].length === 2 && [...document.querySelectorAll('dock-root')].every((e) => e.shadowRoot && e.shadowRoot.querySelector('.tab'))`);
+    const tabs = (root: string): Promise<string[]> =>
+      page.eval<string[]>(`[...document.querySelector('dock-root[root="${root}"]').shadowRoot.querySelectorAll('.tab')].map((t) => t.dataset.pid)`);
+    const rect = (root: string, selector: string, pid?: string): Promise<R> =>
+      page.eval<R>(`(() => { const nodes = [...document.querySelector('dock-root[root="${root}"]').shadowRoot.querySelectorAll('${selector}')];
+        const n = ${pid ? `nodes.find((t) => t.dataset.pid === '${pid}')` : 'nodes[0]'}; const r = n.getBoundingClientRect();
+        return { x: r.left, y: r.top, width: r.width, height: r.height, cx: r.left + r.width / 2, cy: r.top + r.height / 2 }; })()`);
+    assert.deepEqual(await tabs('left'), ['files', 'notes']);
+    assert.deepEqual(await tabs('right'), ['log']);
+    const from = pt(await rect('left', '.tab', 'notes'));
+    const target = await rect('right', '.tabs');
+    await page.drag(from, { x: target.cx, y: target.cy + 30 });
+    await sleep(60);
+    assert.deepEqual(await tabs('left'), ['files']);
+    assert.deepEqual((await tabs('right')).sort(), ['log', 'notes']);
+    assert.deepEqual(page.errors, []);
+  } finally {
+    await page.close();
+  }
+});

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Two dock roots in one page</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0f1115; display: flex; gap: 8px; padding: 8px; box-sizing: border-box; }
+  dock-root { flex: 1; min-width: 0; }
+  .content { padding: 12px 14px; color: #d6dae3; font: 13px sans-serif; }
+</style>
+<!-- Serve the repository root (any static server) and open /docs/examples/two-roots.html after `npm run build`.
+     In an application the import map is your bundler's job. -->
+<script type="importmap">
+{ "imports": { "@iyulab/dock-core": "../../dist/index.js", "@iyulab/dock-core/element": "../../dist/element/index.js" } }
+</script>
+</head>
+<body>
+<dock-root root="left"></dock-root>
+<dock-root root="right"></dock-root>
+<script type="module">
+import { createStore } from '@iyulab/dock-core';
+import { attachStore, defineDockRoot } from '@iyulab/dock-core/element';
+
+defineDockRoot();
+
+// One store, two roots. The host's whole job here is to give both elements the same store.
+const store = createStore();
+const must = (op) => { const r = store.dispatch(op); if (!r.ok) throw new Error(`${op.type}: ${r.error.code}`); };
+must({ type: 'add-root', root: 'left' });
+must({ type: 'add-root', root: 'right' });
+must({ type: 'add-panel', panel: { id: 'files', title: 'Files' }, to: { kind: 'root', root: 'left', ids: { group: 'g1' } } });
+must({ type: 'add-panel', panel: { id: 'notes', title: 'Notes' }, to: { kind: 'tabs', group: 'g1' } });
+must({ type: 'add-panel', panel: { id: 'log', title: 'Log' }, to: { kind: 'root', root: 'right', ids: { group: 'g2' } } });
+
+for (const el of document.querySelectorAll('dock-root')) {
+  // Panel content is the application's: every root gets a child for every panel it may show, slotted by panel id.
+  for (const id of Object.keys(store.getState().panels)) {
+    const content = document.createElement('div');
+    content.className = 'content';
+    content.slot = id;
+    content.textContent = `content of ${id}`;
+    el.append(content);
+  }
+  attachStore(el, store); // shows the store's workspace for this element's root; applies the intents it raises
+}
+</script>
+</body>
+</html>

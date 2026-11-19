@@ -108,7 +108,7 @@ element.addEventListener('dock-reset', () => {
 ```
 
 A host that shares one workspace between windows puts operations in one global order first and dispatches each
-operation only once its place is fixed; the store is the apply-and-notify step.
+operation only once its place is fixed; the store is the apply-and-notify step. [`docs/HOSTS.md`](docs/HOSTS.md) lists what a host has to supply and shows the ordering contract and the drag relay as code you can run.
 
 ## Stability
 
