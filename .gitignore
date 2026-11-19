@@ -1,0 +1,4 @@
+# process records and drafts stay local (public OSS repo)
+claudedocs/
+node_modules/
+dist/
