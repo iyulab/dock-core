@@ -1,11 +1,8 @@
 import { hitTest, placementFor, tabInsertIndex, type GroupGeometry, type Hit, type Point, type Rect } from '../model/hit-test.ts';
 import type { Op } from '../model/ops.ts';
 import type { GroupId, Node, PanelId, RootId, Split, SplitId, Tabs, Workspace } from '../model/types.ts';
+import { defaultIdSource, type IdSource } from './ids.ts';
 import { STYLES } from './styles.ts';
-
-/** What the element asks its host for when an operation needs a new identifier. */
-export type IdKind = 'group' | 'split';
-export type IdSource = (kind: IdKind) => string;
 
 /** A drag in progress. Carries identifiers only: the panel itself lives in the shared workspace registry. */
 export interface DragSession {
@@ -28,16 +25,8 @@ export interface DockDragDetail {
 
 export const MIN_GROUP_SIZE = 90;
 const DRAG_THRESHOLD = 5;
-const UNSAFE_ID_CHARS = /[^a-zA-Z0-9_-]/g;
 
 let dragCounter = 0;
-let fallbackId = 0;
-
-const defaultIdSource: IdSource = (kind) => {
-  const uuid = globalThis.crypto?.randomUUID?.();
-  return `${kind}-${uuid !== undefined ? uuid : `${Date.now().toString(36)}${(++fallbackId).toString(36)}`}`.replace(UNSAFE_ID_CHARS, '');
-};
-
 const toRect = (r: DOMRect): Rect => ({ x: r.left, y: r.top, width: r.width, height: r.height });
 
 interface ActiveDrag {
