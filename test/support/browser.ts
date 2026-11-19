@@ -128,9 +128,10 @@ export class Page {
     await this.dragTo(from, via);
     await this.up(to);
   }
-  async press(key: string): Promise<void> {
-    const codes: Record<string, number> = { ArrowLeft: 37, ArrowRight: 39, Home: 36, End: 35, Delete: 46, Escape: 27 };
-    const base = { key, code: key, windowsVirtualKeyCode: codes[key] ?? 0, nativeVirtualKeyCode: codes[key] ?? 0 };
+  /** Presses and releases a key; `shift` holds Shift down for it. */
+  async press(key: string, { shift = false }: { shift?: boolean } = {}): Promise<void> {
+    const codes: Record<string, number> = { Tab: 9, ArrowLeft: 37, ArrowRight: 39, Home: 36, End: 35, Delete: 46, Escape: 27 };
+    const base = { key, code: key, windowsVirtualKeyCode: codes[key] ?? 0, nativeVirtualKeyCode: codes[key] ?? 0, modifiers: shift ? 8 : 0 };
     await this.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...base });
     await this.send('Input.dispatchKeyEvent', { type: 'keyUp', ...base });
   }

@@ -258,6 +258,7 @@ export class DockRoot extends HTMLElement {
     // ids that tie the selected tab to the panel it shows (panel ids are arbitrary strings, so these are generated)
     const bodyId = `dock-body-${++this.#ariaCount}`;
     const tabId = (index: number): string => `${bodyId}-tab-${index}`;
+    const labelId = (index: number): string => `${tabId(index)}-label`;
     const group = el('div', 'tabs');
     group.dataset['gid'] = node.id;
     const bar = el('div', 'bar');
@@ -275,7 +276,10 @@ export class DockRoot extends HTMLElement {
       tab.setAttribute('part', active ? 'tab tab-active' : 'tab');
       tab.tabIndex = active ? 0 : -1;
       const label = el('span', 'label');
+      label.id = labelId(index);
       label.textContent = panel?.title ?? id;
+      // the tab is named by its title alone: a name computed from its content would read "Title Close Title"
+      tab.setAttribute('aria-labelledby', label.id);
       const close = el('span', 'close');
       close.dataset['close'] = id;
       close.setAttribute('role', 'button');
@@ -288,7 +292,8 @@ export class DockRoot extends HTMLElement {
     body.id = bodyId;
     body.setAttribute('role', 'tabpanel');
     const activeIndex = node.panels.indexOf(node.active);
-    if (activeIndex >= 0) body.setAttribute('aria-labelledby', tabId(activeIndex));
+    // the panel is named by the selected tab's title (the tab also holds the close control, which is not part of the name)
+    if (activeIndex >= 0) body.setAttribute('aria-labelledby', labelId(activeIndex));
     body.setAttribute('part', 'body');
     if (this.#loading.has(node.active)) {
       const skeleton = el('div', 'skeleton');

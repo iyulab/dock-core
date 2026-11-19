@@ -153,7 +153,7 @@ window.dock = {
     return {
       role: body.getAttribute('role'),
       controls: selected?.getAttribute('aria-controls') === body.id && body.id !== '',
-      labelledby: body.getAttribute('aria-labelledby') === selected?.id && !!selected?.id,
+      labelledby: body.getAttribute('aria-labelledby') === selected?.querySelector('.label')?.id && !!selected?.querySelector('.label')?.id,
       othersDoNotControl: others.every((t) => !t.hasAttribute('aria-controls')),
       closeRole: g.querySelector('.close')?.getAttribute('role') ?? null,
     };

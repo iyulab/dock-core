@@ -20,6 +20,7 @@ consumer has to follow are marked **Breaking**. See *Stability* in the README fo
 
 ### Changed
 
+- A tab, and the panel it shows, are named by the panel's title alone. The tab's accessible name used to be computed from its content and so read "Title Close Title"; the tab and the panel now point at the title element with `aria-labelledby`. Checked against the browser's accessibility tree, and the layout against a keyboard-only pass (one tab stop per group, no trap, arrows and Delete).
 - Tab groups expose the whole ARIA tabs pattern: the body is a `tabpanel` labelled by the selected tab, which points back with `aria-controls`, and the close control has the role `button` (before, only `tablist` and `tab` were exposed, so a screen reader could not tell which panel a tab shows).
 
 ### Fixed

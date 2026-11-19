@@ -91,6 +91,8 @@ Several `<dock-root>` elements in one document can move panels between each othe
 `dock-drag` (cancelable) and drives the target with `dragOver` / `dragLeave` / `drop`; the element never creates windows.
 Theming is through CSS custom properties (`--dock-accent`, `--dock-bg`, …) and `part`s.
 
+Accessibility: tab groups follow the WAI-ARIA tabs pattern (`tablist`, `tab`, `tabpanel`); a tab and its panel are named by the panel's title, the close control is a `button` named "Close <title>", and the layout has one tab stop per group (arrows, Home, End and Delete work inside it). The test suite checks this against the browser's accessibility tree and with keyboard-only input in a real browser. It does not check what a particular screen reader says: no screen reader has been run against it.
+
 ### Panel content, removing and restoring
 
 - **Panel content is yours.** The workspace holds a panel's id, title and `params`, never its content. The element shows, for each tab group, the child whose `slot` is the active panel's id; the other children stay in the DOM, hidden. Give every root that can show a panel a child for it, and create one when a panel appears.

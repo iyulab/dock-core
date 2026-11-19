@@ -440,3 +440,92 @@ test('the two-roots example of docs/HOSTS.md renders and moves a panel between i
     await page.close();
   }
 });
+
+/* ---------------------------------------------------------------------------------- A1. what assistive technology receives */
+
+interface AxNode {
+  role: string;
+  name: string;
+  selected: boolean | null;
+  focusable: boolean;
+}
+
+/** The accessibility tree as the browser computes it (shadow roots included), reduced to the roles a user of assistive technology meets, in reading order. */
+async function axTree(page: Page): Promise<AxNode[]> {
+  await page.send('Accessibility.enable');
+  const { nodes } = await page.send<{ nodes: Array<{ nodeId: string; ignored?: boolean; role?: { value: string }; name?: { value: string }; properties?: Array<{ name: string; value: { value?: unknown } }>; childIds?: string[] }> }>('Accessibility.getFullAXTree');
+  const byId = new Map(nodes.map((n) => [n.nodeId, n]));
+  const out: AxNode[] = [];
+  const walk = (id: string): void => {
+    const n = byId.get(id);
+    if (!n) return;
+    const role = n.role?.value ?? '';
+    if (!n.ignored && ['tablist', 'tab', 'tabpanel', 'button'].includes(role)) {
+      const prop = (name: string): unknown => n.properties?.find((p) => p.name === name)?.value.value;
+      out.push({ role, name: n.name?.value ?? '', selected: typeof prop('selected') === 'boolean' ? (prop('selected') as boolean) : null, focusable: prop('focusable') === true });
+    }
+    for (const child of n.childIds ?? []) walk(child);
+  };
+  if (nodes[0]) walk(nodes[0].nodeId);
+  return out;
+}
+
+/** What has keyboard focus, looking through shadow roots: a tab's panel id, or the tag name of anything else. */
+const focusedDeep = (page: Page): Promise<string> =>
+  page.eval<string>(`(() => { let e = document.activeElement; while (e && e.shadowRoot && e.shadowRoot.activeElement) e = e.shadowRoot.activeElement; return e ? (e.dataset && e.dataset.pid) || e.tagName.toLowerCase() : 'none'; })()`);
+
+test('A1: the accessibility tree names every tab, panel and close button, and says which tab is selected', { skip: SKIP }, () =>
+  withPage('normal', async (d) => {
+    const tree = await axTree(d.page);
+    const of = (role: string): AxNode[] => tree.filter((n) => n.role === role);
+    assert.equal(of('tablist').length, 5, 'one tab list per group');
+    assert.deepEqual(of('tab').map((t) => t.name), ['Explorer', 'workspace.rs', 'node.rs', 'Terminal', 'Inspector', 'Throughput'], 'a tab is named by its title alone, not by the close control inside it');
+    assert.deepEqual(of('tab').map((t) => t.selected), [true, true, false, true, true, true]);
+    assert.deepEqual(of('tabpanel').map((t) => t.name), ['Explorer', 'workspace.rs', 'Terminal', 'Inspector', 'Throughput'], 'the panel is named after the selected tab');
+    assert.deepEqual(of('button').map((b) => b.name), ['Close Explorer', 'Close workspace.rs', 'Close node.rs', 'Close Terminal', 'Close Inspector', 'Close Throughput']);
+  }));
+
+test('A1: selecting another tab moves the selected state and the panel name in the accessibility tree', { skip: SKIP }, () =>
+  withPage('normal', async (d) => {
+    await d.page.click(pt(await d.tab('a', 'ed1')));
+    await d.page.press('ArrowRight');
+    await d.settle();
+    const tree = await axTree(d.page);
+    const tabs = tree.filter((n) => n.role === 'tab');
+    assert.deepEqual(tabs.filter((t) => t.selected).map((t) => t.name), ['Explorer', 'node.rs', 'Terminal', 'Inspector', 'Throughput']);
+    assert.ok(tree.some((n) => n.role === 'tabpanel' && n.name === 'node.rs'), 'the panel shows and is named after node.rs');
+    assert.ok(!tree.some((n) => n.role === 'tabpanel' && n.name === 'workspace.rs'));
+  }));
+
+test('A1: the whole layout works from the keyboard — one tab stop per group in reading order, no trap, arrows and Delete inside a group', { skip: SKIP }, () =>
+  withPage('normal', async (d) => {
+    const stops: string[] = [];
+    for (let i = 0; i < 5; i++) {
+      await d.page.press('Tab');
+      stops.push(await focusedDeep(d.page));
+    }
+    assert.deepEqual(stops, ['ex', 'ed1', 'tm', 'in', 'ch'], 'one stop per group, in reading order, across both roots');
+    await d.page.press('Tab');
+    assert.ok(!['ex', 'ed1', 'tm', 'in', 'ch'].includes(await focusedDeep(d.page)), 'Tab leaves the layout (no keyboard trap)');
+
+    const back: string[] = [];
+    for (let i = 0; i < 5; i++) {
+      await d.page.press('Tab', { shift: true });
+      back.push(await focusedDeep(d.page));
+    }
+    assert.deepEqual(back, ['ch', 'in', 'tm', 'ed1', 'ex'], 'Shift+Tab walks the same stops backwards');
+
+    // inside one group: arrows select and focus, the stop moves with the selection, Delete removes the focused tab's panel
+    await d.page.press('Tab'); // from the first stop (ex) to the second
+    assert.equal(await focusedDeep(d.page), 'ed1');
+    await d.page.press('ArrowRight');
+    await d.settle();
+    assert.equal(await focusedDeep(d.page), 'ed2');
+    await d.page.press('Tab', { shift: true });
+    await d.page.press('Tab');
+    assert.equal(await focusedDeep(d.page), 'ed2', 'the group keeps exactly one stop and it is the selected tab');
+    await d.page.press('Delete');
+    await d.settle();
+    assert.equal(await d.layout('A'), 'row([ex*] | column([ed1*] | [tm*]) | [in*])');
+    assert.equal(await focusedDeep(d.page), 'ed1', 'focus is not lost when the focused tab is removed');
+  }));
