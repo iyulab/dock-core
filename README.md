@@ -1,6 +1,6 @@
 # dock-core
 
-A docking layout engine that is independent of any host.
+A docking layout engine that is independent of any host. What a host has to supply, and what the renderer needs from its environment, is listed in [`docs/HOSTS.md`](docs/HOSTS.md).
 
 - **A layout is plain data.** Splits, tab groups and panels live in a JSON-serializable `Workspace` with no DOM,
   window or transport in it, so copies of it can live in different windows or processes.

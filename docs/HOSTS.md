@@ -20,6 +20,19 @@ get wrong — ordering operations across copies and relaying a drag between wind
 
 A host with a single document needs only the first and the last rows plus panel content, which is the next section.
 
+## What the renderer needs from its environment
+
+The model, the operations, serialization, hit-testing and the store (`@iyulab/dock-core`) need nothing from a platform: they run in Node, a worker or a page. The renderer (`@iyulab/dock-core/element`) is a web component and needs a browser-grade document:
+
+- **A DOM at import time.** The module defines a class that extends `HTMLElement`, so importing `@iyulab/dock-core/element` in plain Node, a worker or during server-side rendering throws `ReferenceError: HTMLElement is not defined`. Import it only where a document exists, and keep the model side (for example a sequencer or a server that stores layouts) on the main entry.
+- **Custom Elements v1** (`customElements.define`; `defineDockRoot()` is a no-op when the tag is already defined) and an **open shadow root with named slots**, which is how panel content you own is shown.
+- **Pointer Events with pointer capture** (`setPointerCapture`) for dragging tabs and splitters, plus keyboard events and `selectstart` on the document while a drag lasts (it is cancelled so the pointer crossing your content cannot start a text selection).
+- **Layout measurement** (`getBoundingClientRect`, element client sizes and scroll offsets), `CustomEvent`, and `getRootNode()` to find the document or shadow root the element lives in.
+- **CSS** with custom properties, `::part`, `:focus-visible` and `inset`. The element brings its own style sheet inside its shadow root; theming is through custom properties and `part`s.
+- **Optional:** `crypto.randomUUID` for new group and split ids. Without it (a page served over plain http has none) the element falls back to an id built from the clock, a counter and a random token; pass your own `idSource` to control ids.
+
+A host that is not a browser engine (a terminal, a native toolkit) can still use everything else and draw the layout itself from `Workspace` and `hitTest`; the renderer is not required.
+
 ## One page, several roots
 
 The smallest multi-window host is one document with two `<dock-root>` elements and **one store**. There is a single
