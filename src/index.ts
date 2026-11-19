@@ -5,3 +5,5 @@ export { serialize, parseWorkspace, validateWorkspace } from './model/serialize.
 export type { ParseError, ParseErrorCode, ParseResult } from './model/serialize.ts';
 export { hitTest, hitTestGroup, tabInsertIndex, placementFor, DEFAULT_EDGE_FRACTION } from './model/hit-test.ts';
 export type { Point, Rect, DropZone, GroupGeometry, Hit } from './model/hit-test.ts';
+export { createStore } from './controller/store.ts';
+export type { Store, Listener, Change, ReplaceResult } from './controller/store.ts';
