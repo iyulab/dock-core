@@ -94,6 +94,7 @@ export class DockRoot extends HTMLElement {
   readonly #groups = new Map<GroupId, Tabs>();
   readonly #splits = new Map<SplitId, Split>();
   #focusNext: { panel?: PanelId; group?: GroupId } | null = null;
+  #ariaCount = 0;
   #drag: ActiveDrag | null = null;
   #suppressClick = false;
 
@@ -254,30 +255,40 @@ export class DockRoot extends HTMLElement {
 
   #renderTabs(node: Tabs): HTMLElement {
     this.#groups.set(node.id, node);
+    // ids that tie the selected tab to the panel it shows (panel ids are arbitrary strings, so these are generated)
+    const bodyId = `dock-body-${++this.#ariaCount}`;
+    const tabId = (index: number): string => `${bodyId}-tab-${index}`;
     const group = el('div', 'tabs');
     group.dataset['gid'] = node.id;
     const bar = el('div', 'bar');
     bar.setAttribute('role', 'tablist');
     bar.setAttribute('part', 'tabbar');
-    for (const id of node.panels) {
+    node.panels.forEach((id, index) => {
       const panel = this.#workspace && Object.hasOwn(this.#workspace.panels, id) ? this.#workspace.panels[id] : undefined;
       const active = id === node.active;
       const tab = el('div', 'tab');
+      tab.id = tabId(index);
       tab.dataset['pid'] = id;
       tab.setAttribute('role', 'tab');
       tab.setAttribute('aria-selected', String(active));
+      if (active) tab.setAttribute('aria-controls', bodyId);
       tab.setAttribute('part', active ? 'tab tab-active' : 'tab');
       tab.tabIndex = active ? 0 : -1;
       const label = el('span', 'label');
       label.textContent = panel?.title ?? id;
       const close = el('span', 'close');
       close.dataset['close'] = id;
+      close.setAttribute('role', 'button');
       close.setAttribute('aria-label', `Close ${panel?.title ?? id}`);
       close.textContent = '✕';
       tab.append(label, close);
       bar.append(tab);
-    }
+    });
     const body = el('div', 'body');
+    body.id = bodyId;
+    body.setAttribute('role', 'tabpanel');
+    const activeIndex = node.panels.indexOf(node.active);
+    if (activeIndex >= 0) body.setAttribute('aria-labelledby', tabId(activeIndex));
     body.setAttribute('part', 'body');
     if (this.#loading.has(node.active)) {
       const skeleton = el('div', 'skeleton');

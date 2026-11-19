@@ -18,6 +18,10 @@ consumer has to follow are marked **Breaking**. See *Stability* in the README fo
 - A built package (`dist`, two entry points) that installs into an empty project and runs under strict TypeScript.
 - README: installing from a checkout, panel content, removing and restoring a layout.
 
+### Changed
+
+- Tab groups expose the whole ARIA tabs pattern: the body is a `tabpanel` labelled by the selected tab, which points back with `aria-controls`, and the close control has the role `button` (before, only `tablist` and `tab` were exposed, so a screen reader could not tell which panel a tab shows).
+
 ### Fixed
 
 - An element whose root is not in the workspace stayed blank. It now says why (no workspace attached, no `root` attribute,

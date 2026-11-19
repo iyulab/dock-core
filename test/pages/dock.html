@@ -145,6 +145,19 @@ window.dock = {
   },
   gutter: (name, i) => rectOf(qa(rootEl(name), '.gutter')[i]),
   cellFlex: (name, i) => qa(rootEl(name), '.cell')[i]?.style.flex,
+  // the tab pattern as assistive technology reads it: which element the selected tab controls and what labels it
+  tabPattern: (name) => qa(rootEl(name), '.tabs').map((g) => {
+    const body = g.querySelector('.body');
+    const selected = g.querySelector('.tab[aria-selected="true"]');
+    const others = [...g.querySelectorAll('.tab[aria-selected="false"]')];
+    return {
+      role: body.getAttribute('role'),
+      controls: selected?.getAttribute('aria-controls') === body.id && body.id !== '',
+      labelledby: body.getAttribute('aria-labelledby') === selected?.id && !!selected?.id,
+      othersDoNotControl: others.every((t) => !t.hasAttribute('aria-controls')),
+      closeRole: g.querySelector('.close')?.getAttribute('role') ?? null,
+    };
+  }),
   roles: (name) => qa(rootEl(name), '[role]').map((x) => `${x.getAttribute('role')}:${x.getAttribute('aria-selected')}`),
   skeleton: (name) => qa(rootEl(name), '.skeleton').length,
   loading: (name, pid, on) => rootEl(name).setPanelState(pid, on ? 'loading' : 'ready'),

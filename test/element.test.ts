@@ -95,6 +95,10 @@ test('S1.1 + S1.10: nested splits with 1px splitters, tab groups, roles', { skip
     assert.ok(roles.includes('tablist:null'));
     assert.ok(roles.includes('tab:true') && roles.includes('tab:false'));
     assert.deepEqual(await d.call('tabStops("a")'), [1, 1, 1, 1], 'exactly one tab stop per tab bar');
+    // the selected tab and the panel it shows point at each other, so a screen reader announces the panel as that tab's
+    const pattern = await d.call<Array<{ role: string; controls: boolean; labelledby: boolean; othersDoNotControl: boolean; closeRole: string | null }>>('tabPattern("a")');
+    assert.equal(pattern.length, 4);
+    for (const group of pattern) assert.deepEqual(group, { role: 'tabpanel', controls: true, labelledby: true, othersDoNotControl: true, closeRole: 'button' });
   }));
 
 test('S1.2 + S1.3: splitter resizes live, commits once on release, keeps the minimum size', { skip: SKIP }, () =>
