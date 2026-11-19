@@ -66,7 +66,9 @@ store.replace(restoredWorkspace); // validated; reports the problems and changes
 
 `@iyulab/dock-core/element` is a web component, `<dock-root>`, that draws one root of a workspace. It is a controlled
 component: it never changes its own workspace. What the user decides leaves as a `dock-intent` event carrying an
-operation, and the host applies it and hands the new workspace back.
+operation, and the host applies it and hands the new workspace back. The event's `detail` is `{ op }` (the type is
+`DockIntentDetail`, exported from `@iyulab/dock-core/element`), and it bubbles and is composed, so you can listen on the
+element, on an ancestor or on the document.
 
 ```html
 <dock-root root="main">
@@ -115,6 +117,8 @@ operation only once its place is fixed; the store is the apply-and-notify step. 
 ## Stability
 
 Every package is `0.0.0`. Anything may change without a deprecation period: the operation types and their fields, placements, the element's attributes, events and parts. [CHANGELOG.md](CHANGELOG.md) lists each change a consumer has to follow, marked **Breaking**. What is meant to stay: a workspace is plain JSON and operations are pure and deterministic, so copies fed the same operations in the same order stay identical; and a serialized workspace carries a `version`, which `parseWorkspace` checks, refusing a version it does not know instead of misreading it.
+
+**Saved layouts.** There is one schema version today, `1`. `parseWorkspace` refuses a version greater than the one it supports with a `version` error (the renderer's `error` property shows it with a reset action), refuses a missing, non-integer or non-positive version with a `shape` error, and reads a supported version as it is. There is no migration step: no older version exists yet, and when one does, the CHANGELOG will say how it is read. Until then a host that must survive a format change keeps its own fallback (a default workspace) for the cases `parseWorkspace` refuses.
 
 ## Develop
 
