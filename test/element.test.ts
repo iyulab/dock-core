@@ -131,6 +131,15 @@ test('S1.4: closing the last tab removes the group and collapses the split', { s
     assert.equal(await d.layout('A'), 'row([ex*] | [ed1*,ed2] | [in*])');
   }));
 
+test('a dock-intent event carries exactly { op } and reaches the document', { skip: SKIP }, () =>
+  withPage('normal', async (d) => {
+    await d.page.click(pt(await d.call<R>('closeBtn("a","tm")')));
+    await d.settle();
+    // the listener sits on the document, so the event also bubbled out of the shadow tree
+    assert.deepEqual(await d.call('log.intentShapes'), ['op']);
+    assert.deepEqual(await d.call('log.intents'), ['remove-panel']);
+  }));
+
 test('S1.5: an empty window shows the empty state', { skip: SKIP }, () =>
   withPage('empty', async (d) => {
     const text = await d.call<string>('text("b")');

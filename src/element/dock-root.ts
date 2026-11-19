@@ -23,6 +23,15 @@ export interface DockDragDetail {
   readonly cancelled: boolean;
 }
 
+/**
+ * The `detail` of a `dock-intent` event: the operation the user's gesture amounts to. The element never applies it;
+ * the host does, then hands the new workspace back. The event bubbles and is composed, so it can be heard on the
+ * element, on an ancestor, or on the document.
+ */
+export interface DockIntentDetail {
+  readonly op: Op;
+}
+
 export const MIN_GROUP_SIZE = 90;
 const DRAG_THRESHOLD = 5;
 
@@ -356,7 +365,7 @@ export class DockRoot extends HTMLElement {
   /* ------------------------------------------------------------------------------- tabs: click, keyboard */
 
   #emitIntent(op: Op): void {
-    this.dispatchEvent(new CustomEvent('dock-intent', { detail: { op }, bubbles: true, composed: true }));
+    this.dispatchEvent(new CustomEvent<DockIntentDetail>('dock-intent', { detail: { op }, bubbles: true, composed: true }));
   }
 
   #onClick(e: MouseEvent): void {

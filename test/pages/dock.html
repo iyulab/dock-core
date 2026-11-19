@@ -26,7 +26,7 @@ const store = createStore();
 const a = document.getElementById('a');
 const b = document.getElementById('b');
 const titles = { ex: 'Explorer', ed1: 'workspace.rs', ed2: 'node.rs', tm: 'Terminal', in: 'Inspector', ch: 'Throughput' };
-const log = { drag: [], reset: 0, intents: [] };
+const log = { drag: [], reset: 0, intents: [], intentShapes: [] };
 let n = 0;
 const fresh = (p) => `${p}${++n}`;
 
@@ -92,7 +92,10 @@ document.addEventListener('dock-drag', (e) => {
     store.dispatch({ type: 'detach', panel: d.session.panel, root: fresh('W'), ids: { group: fresh('gD') } });
   }
 });
-document.addEventListener('dock-intent', (e) => log.intents.push(e.detail.op.type));
+document.addEventListener('dock-intent', (e) => {
+  log.intents.push(e.detail.op.type);
+  log.intentShapes.push(Object.keys(e.detail).join(','));
+});
 
 const q = (rootEl, selector) => rootEl.shadowRoot.querySelector(selector);
 const qa = (rootEl, selector) => [...rootEl.shadowRoot.querySelectorAll(selector)];

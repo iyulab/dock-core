@@ -1,6 +1,5 @@
-import type { Op } from '../model/ops.ts';
 import type { Store } from '../controller/store.ts';
-import type { DockRoot } from './dock-root.ts';
+import type { DockIntentDetail, DockRoot } from './dock-root.ts';
 
 /**
  * Wires a root element to a store: the element shows the store's workspace and its intents are dispatched to the
@@ -13,7 +12,7 @@ export function attachStore(element: DockRoot, store: Store): () => void {
     element.workspace = workspace;
   });
   const onIntent = (event: Event): void => {
-    store.dispatch((event as CustomEvent<{ op: Op }>).detail.op);
+    store.dispatch((event as CustomEvent<DockIntentDetail>).detail.op);
   };
   element.addEventListener('dock-intent', onIntent);
   return () => {
