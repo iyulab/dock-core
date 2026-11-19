@@ -361,6 +361,48 @@ The sketch compiles under `strict` against the declarations; it is not run, beca
 yours. [tauri-dock](https://github.com/iyulab/tauri-dock) implements this for Tauri on Windows (on macOS and Linux it has
 no window-under-cursor query yet, so a drag cannot cross windows there).
 
+## Restoring after an update: panels the application no longer has
+
+A saved layout names panels by id. When an update removes a panel, an old layout still lists it, and the element shows its tab with nothing to show in it, because panel content is the application's and the library cannot know which ids you still ship. The library offers no callback for this on purpose; the application compares and removes with ordinary operations. After restoring, compare the workspace's panels with your own registry and remove what is unknown:
+
+```ts
+// unknown-panels.ts
+import { apply, createStore, createWorkspace, parseWorkspace, serialize, type Workspace } from '@iyulab/dock-core';
+
+/** A layout an older build of the application saved: it still has a panel this build no longer ships. */
+function savedByAnOlderBuild(): string {
+  let ws: Workspace = createWorkspace();
+  const step = (op: Parameters<typeof apply>[1]): void => {
+    ws = apply(ws, op);
+  };
+  step({ type: 'add-root', root: 'main' });
+  step({ type: 'add-panel', panel: { id: 'files', title: 'Files' }, to: { kind: 'root', root: 'main', ids: { group: 'g1' } } });
+  step({ type: 'add-panel', panel: { id: 'legacy-report', title: 'Legacy report' }, to: { kind: 'tabs', group: 'g1' } });
+  step({ type: 'add-panel', panel: { id: 'console', title: 'Console' }, to: { kind: 'edge', group: 'g1', side: 'bottom', ids: { group: 'g2', split: 's1' } } });
+  return serialize(ws);
+}
+
+/** The panels this build of the application can show: the host's own registry. */
+const registry = new Set(['files', 'editor', 'console']);
+
+const parsed = parseWorkspace(savedByAnOlderBuild());
+if (!parsed.ok) throw new Error(`the stored layout cannot be restored: ${parsed.error.message}`);
+const store = createStore(parsed.workspace);
+
+// The recipe: compare what the restored workspace holds with what the application can show, and remove the rest with
+// ordinary operations. Panels the application knows are left exactly where the user put them.
+const removed: string[] = [];
+for (const id of Object.keys(store.getState().panels)) {
+  if (registry.has(id)) continue;
+  const result = store.dispatch({ type: 'remove-panel', panel: id });
+  if (result.ok) removed.push(id);
+}
+
+console.log(JSON.stringify({ removed, panels: Object.keys(store.getState().panels) }));
+```
+
+It prints `{"removed":["legacy-report"],"panels":["files","console"]}`: the unknown panel is gone, the others are exactly where the user left them, and the group that held it keeps its remaining tabs. In a host that shares the workspace between windows, run the comparison in one place only and send each `remove-panel` through the ordering layer like any other operation, so every copy removes the same panels at the same position in the order.
+
 ## What this page does not cover
 
 - A real screen reader's output (the renderer's accessibility tree is checked in the test suite).
