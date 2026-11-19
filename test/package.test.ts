@@ -78,6 +78,28 @@ apply(ws, { type: 'nope' });
   execFileSync(process.execPath, [tsc, '-p', 'tsconfig.json'], { cwd: project, stdio: 'pipe' });
 });
 
+test('the element entry point type-checks for a consumer with DOM types, and the model entry needs none', () => {
+  writeFileSync(
+    join(project, 'element.ts'),
+    `import { createStore } from '@iyulab/dock-core';
+import { attachStore, defineDockRoot, type DockDragDetail, type DragSession } from '@iyulab/dock-core/element';
+const Root = defineDockRoot();
+const el = new Root();
+el.root = 'main';
+el.idSource = (kind) => kind + '-1';
+const off: () => void = attachStore(el, createStore());
+el.addEventListener('dock-drag', (e) => { const d = (e as CustomEvent<DockDragDetail>).detail; const s: DragSession = d.session; void s; });
+off();
+`,
+  );
+  writeFileSync(
+    join(project, 'tsconfig.element.json'),
+    JSON.stringify({ compilerOptions: { module: 'NodeNext', moduleResolution: 'NodeNext', target: 'ES2022', lib: ['ES2022', 'DOM'], strict: true, skipLibCheck: false, noEmit: true, types: [] }, include: ['element.ts'] }),
+  );
+  const tsc = join(repo, 'node_modules', 'typescript', 'bin', 'tsc');
+  execFileSync(process.execPath, [tsc, '-p', 'tsconfig.element.json'], { cwd: project, stdio: 'pipe' });
+});
+
 test('the declarations never point at .ts files', () => {
   const dist = join(project, 'node_modules', '@iyulab', 'dock-core', 'dist');
   const bad: string[] = [];

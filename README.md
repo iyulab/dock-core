@@ -14,7 +14,7 @@ A docking layout engine that is independent of any host.
 - Zero runtime dependencies.
 
 Status: pre-release. The data model, operations, serialization, hit-testing and a minimal store are implemented and tested; the
-web-component renderer is not started. See [`docs/CONSTITUTION.md`](docs/CONSTITUTION.md) for scope.
+web-component renderer is implemented and tested against a conformance checklist in a real browser. See [`docs/CONSTITUTION.md`](docs/CONSTITUTION.md) for scope.
 
 ```ts
 import { createWorkspace, apply, tryApply } from '@iyulab/dock-core';
@@ -50,6 +50,35 @@ store.dispatch({ type: 'add-root', root: 'main' }); // same result as tryApply; 
 store.replace(restoredWorkspace); // validated; reports the problems and changes nothing if it is not sound
 ```
 
+## Renderer
+
+`@iyulab/dock-core/element` is a web component, `<dock-root>`, that draws one root of a workspace. It is a controlled
+component: it never changes its own workspace. What the user decides leaves as a `dock-intent` event carrying an
+operation, and the host applies it and hands the new workspace back.
+
+```html
+<dock-root root="main">
+  <!-- panel content is yours: a direct child per panel, slotted by panel id -->
+  <div slot="editor">…</div>
+  <div slot="term">…</div>
+</dock-root>
+```
+
+```ts
+import { createStore } from '@iyulab/dock-core';
+import { attachStore, defineDockRoot } from '@iyulab/dock-core/element';
+
+defineDockRoot();
+const store = createStore(/* a workspace with a root "main" */);
+attachStore(document.querySelector('dock-root')!, store); // shows the store's workspace, dispatches its intents
+```
+
+Splits with resizable splitters (minimum size enforced), tab groups with overflow scrolling, drag and drop with a
+drop-zone overlay and tab insertion line, keyboard navigation (roving tabindex), empty / error / loading states.
+Several `<dock-root>` elements in one document can move panels between each other. A host that spans windows listens to
+`dock-drag` (cancelable) and drives the target with `dragOver` / `dragLeave` / `drop`; the element never creates windows.
+Theming is through CSS custom properties (`--dock-accent`, `--dock-bg`, …) and `part`s.
+
 A host that shares one workspace between windows puts operations in one global order first and dispatches each
 operation only once its place is fixed; the store is the apply-and-notify step.
 
@@ -59,7 +88,7 @@ Requires Node 22.18 or newer (TypeScript is run directly through type stripping)
 
 ```
 npm install
-npm test
+npm test       # model, store, package, and the renderer in headless Chrome or Edge (set DOCK_BROWSER to choose one)
 npm run typecheck
 npm run build   # emits dist/ (JavaScript and declarations); tests pack and install it into an empty project
 ```

@@ -9,6 +9,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./element": {
+      "types": "./dist/element/index.d.ts",
+      "default": "./dist/element/index.js"
     }
   },
   "files": [
@@ -21,7 +25,7 @@
     "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json && node scripts/rewrite-declarations.mjs",
     "prepack": "npm run build",
     "test": "node --test \"test/**/*.test.ts\"",
-    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.element.json && tsc --noEmit -p tsconfig.test.json"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",

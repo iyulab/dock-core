@@ -18,6 +18,8 @@
     "types": []
   },
   "include": [
-    "src"
+    "src/model",
+    "src/controller",
+    "src/index.ts"
   ]
 }

@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>dock-root test page</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0f1115; }
+  dock-root { position: absolute; top: 0; height: 520px; }
+  #a { left: 0; width: 760px; }
+  #b { left: 800px; width: 420px; }
+  .content { padding: 12px 14px; color: #d6dae3; font: 13px sans-serif; }
+</style>
+</head>
+<body>
+<dock-root id="a" root="A"></dock-root>
+<dock-root id="b" root="B"></dock-root>
+<script type="module">
+import { createStore } from '/dist/index.js';
+import { attachStore, defineDockRoot } from '/dist/element/index.js';
+
+defineDockRoot();
+const params = new URLSearchParams(location.search);
+const scenario = params.get('scenario') ?? 'normal';
+
+const store = createStore();
+const a = document.getElementById('a');
+const b = document.getElementById('b');
+const titles = { ex: 'Explorer', ed1: 'workspace.rs', ed2: 'node.rs', tm: 'Terminal', in: 'Inspector', ch: 'Throughput' };
+const log = { drag: [], reset: 0, intents: [] };
+let n = 0;
+const fresh = (p) => `${p}${++n}`;
+
+const must = (op) => {
+  const r = store.dispatch(op);
+  if (!r.ok) throw new Error(`${op.type}: ${r.error.code}`);
+};
+const add = (id, title, to) => must({ type: 'add-panel', panel: { id, title }, to });
+
+must({ type: 'add-root', root: 'A' });
+must({ type: 'add-root', root: 'B' });
+if (scenario === 'many') {
+  add('ex', titles.ex, { kind: 'root', root: 'A', ids: { group: 'gEx' } });
+  add('f1', 'file_01.rs', { kind: 'edge', group: 'gEx', side: 'right', ids: { group: 'gFiles', split: 's1' } });
+  for (let i = 2; i <= 40; i++) add(`f${i}`, `file_${String(i).padStart(2, '0')}.rs`, { kind: 'tabs', group: 'gFiles' });
+  must({ type: 'activate', panel: 'f18' });
+  add('ch', titles.ch, { kind: 'root', root: 'B', ids: { group: 'gCh' } });
+} else {
+  add('ex', titles.ex, { kind: 'root', root: 'A', ids: { group: 'gEx' } });
+  add('ed1', titles.ed1, { kind: 'edge', group: 'gEx', side: 'right', ids: { group: 'gEd', split: 's1' } });
+  add('ed2', titles.ed2, { kind: 'tabs', group: 'gEd' });
+  add('in', titles.in, { kind: 'edge', group: 'gEd', side: 'right', ids: { group: 'gIn', split: 's2' } });
+  add('tm', titles.tm, { kind: 'edge', group: 'gEd', side: 'bottom', ids: { group: 'gTm', split: 's3' } });
+  must({ type: 'activate', panel: 'ed1' });
+  if (scenario !== 'empty' && scenario !== 'error') add('ch', titles.ch, { kind: 'root', root: 'B', ids: { group: 'gCh' } });
+  if (scenario === 'empty' || scenario === 'error') add('ch', titles.ch, { kind: 'edge', group: 'gEd', side: 'right', ids: { group: 'gX', split: 's9' } });
+}
+
+// panel content belongs to the application: every panel gets a child in both roots (only the active one is shown)
+for (const root of [a, b]) {
+  for (const id of Object.keys(store.getState().panels)) {
+    const c = document.createElement('div');
+    c.className = 'content';
+    c.slot = id;
+    c.textContent = `content of ${id}`;
+    root.append(c);
+  }
+}
+attachStore(a, store);
+attachStore(b, store);
+
+if (scenario === 'error') b.error = 'Layout could not be restored: schema version 3 is newer than the supported version 1.';
+b.addEventListener('dock-reset', () => {
+  log.reset++;
+  b.error = null;
+  store.dispatch({ type: 'move-panel', panel: 'ch', to: { kind: 'root', root: 'B', ids: { group: fresh('gR') } } });
+});
+
+// a host that tears off a drag released over nothing: here it only records the request as a new root
+let host = 'default';
+document.addEventListener('dock-drag', (e) => {
+  const d = e.detail;
+  log.drag.push({ phase: d.phase, target: d.target?.root ?? null, cancelled: d.cancelled });
+  if (host === 'takeover') e.preventDefault();
+  if (d.phase === 'end' && !d.cancelled && d.target === null && host !== 'takeover') {
+    store.dispatch({ type: 'detach', panel: d.session.panel, root: fresh('W'), ids: { group: fresh('gD') } });
+  }
+});
+document.addEventListener('dock-intent', (e) => log.intents.push(e.detail.op.type));
+
+const q = (rootEl, selector) => rootEl.shadowRoot.querySelector(selector);
+const qa = (rootEl, selector) => [...rootEl.shadowRoot.querySelectorAll(selector)];
+const rectOf = (node) => {
+  if (!node) return null;
+  const r = node.getBoundingClientRect();
+  return { x: r.left, y: r.top, width: r.width, height: r.height, cx: r.left + r.width / 2, cy: r.top + r.height / 2 };
+};
+const rootEl = (name) => (name === 'a' ? a : b);
+
+window.dock = {
+  store,
+  log,
+  setHost: (mode) => { host = mode; },
+  state: () => JSON.parse(JSON.stringify(store.getState())),
+  rect: (name, selector, index = 0) => rectOf(qa(rootEl(name), selector)[index]),
+  count: (name, selector) => qa(rootEl(name), selector).length,
+  tab: (name, pid) => rectOf(qa(rootEl(name), '.tab').find((t) => t.dataset.pid === pid)),
+  group: (name, gid) => rectOf(qa(rootEl(name), '.tabs').find((g) => g.dataset.gid === gid)),
+  bar: (name, gid) => rectOf(qa(rootEl(name), '.tabs').find((g) => g.dataset.gid === gid)?.querySelector('.bar')),
+  closeBtn: (name, pid) => rectOf(qa(rootEl(name), '.close').find((c) => c.dataset.close === pid)),
+  text: (name) => rootEl(name).shadowRoot.querySelector('.root').textContent,
+  overlay: (name) => {
+    const o = q(rootEl(name), '.overlay');
+    const i = q(rootEl(name), '.insert');
+    return {
+      overlay: getComputedStyle(o).display !== 'none' ? { ...rectOf(o), label: o.textContent } : null,
+      insert: getComputedStyle(i).display !== 'none' ? rectOf(i) : null,
+    };
+  },
+  ghost: (name) => {
+    const g = q(rootEl(name), '.ghost');
+    return getComputedStyle(g).display !== 'none' ? g.textContent : null;
+  },
+  ghosted: (name) => qa(rootEl(name), '.tab.ghosted').map((t) => t.dataset.pid),
+  tabs: (name, gid) => qa(rootEl(name), '.tabs').find((g) => g.dataset.gid === gid)
+    ?.querySelectorAll('.tab').length,
+  tabStops: (name) => qa(rootEl(name), '.bar').map((bar) => bar.querySelectorAll('.tab[tabindex="0"]').length),
+  focused: (name) => rootEl(name).shadowRoot.activeElement?.dataset?.pid ?? null,
+  barScroll: (name, gid) => {
+    const bar = qa(rootEl(name), '.tabs').find((g) => g.dataset.gid === gid)?.querySelector('.bar');
+    return { left: bar.scrollLeft, max: bar.scrollWidth - bar.clientWidth, width: bar.clientWidth };
+  },
+  gutter: (name, i) => rectOf(qa(rootEl(name), '.gutter')[i]),
+  cellFlex: (name, i) => qa(rootEl(name), '.cell')[i]?.style.flex,
+  roles: (name) => qa(rootEl(name), '[role]').map((x) => `${x.getAttribute('role')}:${x.getAttribute('aria-selected')}`),
+  skeleton: (name) => qa(rootEl(name), '.skeleton').length,
+  loading: (name, pid, on) => rootEl(name).setPanelState(pid, on ? 'loading' : 'ready'),
+  setWorkspaceMidDrag: () => { a.workspace = JSON.parse(JSON.stringify(store.getState())); },
+};
+window.dockReady = true;
+</script>
+</body>
+</html>
