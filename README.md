@@ -14,7 +14,7 @@ A docking layout engine that is independent of any host.
 - Zero runtime dependencies.
 
 Status: pre-release. The data model, operations, serialization, hit-testing and a minimal store are implemented and tested; the
-web-component renderer is implemented and tested against a conformance checklist in a real browser. See [`docs/CONSTITUTION.md`](docs/CONSTITUTION.md) for scope.
+web-component renderer is implemented and tested against a conformance checklist in a real browser. See [`docs/CONSTITUTION.md`](docs/CONSTITUTION.md) for scope, [Stability](#stability) for what may change, and [CHANGELOG.md](CHANGELOG.md).
 
 ## Install
 
@@ -109,6 +109,10 @@ element.addEventListener('dock-reset', () => {
 
 A host that shares one workspace between windows puts operations in one global order first and dispatches each
 operation only once its place is fixed; the store is the apply-and-notify step.
+
+## Stability
+
+Every package is `0.0.0`. Anything may change without a deprecation period: the operation types and their fields, placements, the element's attributes, events and parts. [CHANGELOG.md](CHANGELOG.md) lists each change a consumer has to follow, marked **Breaking**. What is meant to stay: a workspace is plain JSON and operations are pure and deterministic, so copies fed the same operations in the same order stay identical; and a serialized workspace carries a `version`, which `parseWorkspace` checks, refusing a version it does not know instead of misreading it.
 
 ## Develop
 
