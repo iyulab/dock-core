@@ -13,7 +13,7 @@ A docking layout engine that is independent of any host.
   region to highlight.
 - Zero runtime dependencies.
 
-Status: pre-release. The data model, operations, serialization and hit-testing are implemented and tested; the
+Status: pre-release. The data model, operations, serialization, hit-testing and a minimal store are implemented and tested; the
 web-component renderer is not started. See [`docs/CONSTITUTION.md`](docs/CONSTITUTION.md) for scope.
 
 ```ts
@@ -39,6 +39,20 @@ const r = tryApply(ws, { type: 'move-panel', panel: 'nope', to: { kind: 'tabs', 
 // r.ok === false, r.error.code === 'unknown-panel'; apply() would return ws unchanged
 ```
 
+A host that just needs to hold a workspace, apply operations and tell listeners what changed can use the store:
+
+```ts
+import { createStore } from '@iyulab/dock-core';
+
+const store = createStore();
+const off = store.subscribe((state, change) => render(state)); // change.kind: 'op' | 'replace'
+store.dispatch({ type: 'add-root', root: 'main' }); // same result as tryApply; invalid operations are not announced
+store.replace(restoredWorkspace); // validated; reports the problems and changes nothing if it is not sound
+```
+
+A host that shares one workspace between windows puts operations in one global order first and dispatches each
+operation only once its place is fixed; the store is the apply-and-notify step.
+
 ## Develop
 
 Requires Node 22.18 or newer (TypeScript is run directly through type stripping).
@@ -47,6 +61,7 @@ Requires Node 22.18 or newer (TypeScript is run directly through type stripping)
 npm install
 npm test
 npm run typecheck
+npm run build   # emits dist/ (JavaScript and declarations); tests pack and install it into an empty project
 ```
 
 ## License
